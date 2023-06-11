@@ -1,0 +1,19 @@
+{
+    "name": "component-binder",
+
+    "tree": {
+        "$className": "DataModel",
+
+        "ReplicatedStorage": {
+            "$className": "ReplicatedStorage",
+
+            "Packages": {
+                "$path": "Packages",
+
+                "ComponentBinder": {
+                    "$path": "src"
+                }
+            }
+        }
+    }
+}
