@@ -1,7 +1,10 @@
+local CollectionService = game:GetService("CollectionService")
+
 local Observers = require(script.Parent.Observers)
 local TableUtil = require(script.Parent.TableUtil)
 local Signal = require(script.Parent.Signal)
 local Trove = require(script.Parent.Trove)
+local Promise = require(script.Parent.Promise)
 
 local observeTag = Observers.observeTag
 
@@ -57,6 +60,41 @@ function ComponentBinder:GetObjectRemovingSignal()
     end
 
     return self._objectRemovingSignal
+end
+
+function ComponentBinder:Get(instance)
+    return self._objects[instance]
+end
+
+function ComponentBinder:WaitFor(instance)
+    if self._objects[instance] then
+        return Promise.resolve(self._objects[instance])
+    end
+
+    return Promise.new(function(resolve, reject, onCancel)
+        local connection = nil
+
+        connection = self:GetObjectAddedSignal():Connect(function(object)
+            if object == instance then
+                connection:Disconnect()
+                resolve(object)
+            end
+        end)
+
+        onCancel(function()
+            connection:Disconnect()
+        end)
+    end)
+end
+
+function ComponentBinder:Bind(instance)
+    CollectionService:AddTag(instance, self._tag)
+    return self:Get(instance)
+end
+
+function ComponentBinder:BindAsync(instance)
+    CollectionService:AddTag(instance, self._tag)
+    return self:WaitFor(instance)
 end
 
 function ComponentBinder:GetAll()
