@@ -141,7 +141,7 @@ function ComponentBinder:_bind(instance: Instance)
     self._objects[instance] = object
 
     if self._objectAddedSignal then
-        self._objectAddedSignal:Fire(instance)
+        self._objectAddedSignal:Fire(object)
     end
 end
 
@@ -153,7 +153,7 @@ function ComponentBinder:_unbind(instance: Instance)
     end
 
     if self._objectRemovingSignal then
-        self._objectRemovingSignal:Fire(instance)
+        self._objectRemovingSignal:Fire(object)
     end
 
     object:Destroy()
