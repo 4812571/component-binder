@@ -17,6 +17,8 @@ type Destroyable = {
     Destroy: () -> ()
 }
 
+type Cleanup = () -> ()
+
 type BindableClass = {
     new: (instance: Instance, context: AnyTable?) -> Destroyable
 }
@@ -62,11 +64,11 @@ function ComponentBinder:GetObjectRemovingSignal()
     return self._objectRemovingSignal
 end
 
-function ComponentBinder:Get(instance)
+function ComponentBinder:Get(instance: Instance)
     return self._objects[instance]
 end
 
-function ComponentBinder:WaitFor(instance)
+function ComponentBinder:WaitFor(instance: Instance)
     if self._objects[instance] then
         return Promise.resolve(self._objects[instance])
     end
@@ -87,12 +89,12 @@ function ComponentBinder:WaitFor(instance)
     end)
 end
 
-function ComponentBinder:Bind(instance)
+function ComponentBinder:Bind(instance: Instance)
     CollectionService:AddTag(instance, self._tag)
     return self:Get(instance)
 end
 
-function ComponentBinder:BindAsync(instance)
+function ComponentBinder:BindAsync(instance: Instance)
     CollectionService:AddTag(instance, self._tag)
     return self:WaitFor(instance)
 end
@@ -101,7 +103,7 @@ function ComponentBinder:GetAll()
     return TableUtil.Values(self._objects)
 end
 
-function ComponentBinder:ObserveObjects(callback)
+function ComponentBinder:ObserveObjects(callback: (object: Destroyable) -> Cleanup)
     local cleanups = {}
 
     for _, object in self._objects do
@@ -134,7 +136,7 @@ function ComponentBinder:ObserveObjects(callback)
     end
 end
 
-function ComponentBinder:_bind(instance)
+function ComponentBinder:_bind(instance: Instance)
     local object = self._class.new(instance, self._context)
     self._objects[instance] = object
 
@@ -143,7 +145,7 @@ function ComponentBinder:_bind(instance)
     end
 end
 
-function ComponentBinder:_unbind(instance)
+function ComponentBinder:_unbind(instance: Instance)
     local object = self._objects[instance]
 
     if not object then
@@ -159,7 +161,7 @@ function ComponentBinder:_unbind(instance)
 end
 
 function ComponentBinder:Start()
-    local stopObserver = observeTag(self._tag, function(instance)
+    local stopObserver = observeTag(self._tag, function(instance: Instance)
         self:_bind(instance)
 
         return function()
