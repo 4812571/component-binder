@@ -137,6 +137,10 @@ end
 function ComponentBinder:_bind(instance)
     local object = self._class.new(instance, self._context)
     self._objects[instance] = object
+
+    if self._objectAddedSignal then
+        self._objectAddedSignal:Fire(instance)
+    end
 end
 
 function ComponentBinder:_unbind(instance)
@@ -144,6 +148,10 @@ function ComponentBinder:_unbind(instance)
 
     if not object then
         return
+    end
+
+    if self._objectRemovingSignal then
+        self._objectRemovingSignal:Fire(instance)
     end
 
     object:Destroy()
