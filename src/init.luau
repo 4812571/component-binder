@@ -142,10 +142,12 @@ end
 function ComponentBinder:_unbind(instance)
     local object = self._objects[instance]
 
-    if object then
-        object:Destroy()
-        self._objects[instance] = nil
+    if not object then
+        return
     end
+
+    object:Destroy()
+    self._objects[instance] = nil
 end
 
 function ComponentBinder:Start()
