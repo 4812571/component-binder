@@ -22,14 +22,14 @@ type Destroyable = {
 type Cleanup = () -> ()
 type Handler<T...> = ((T...) -> Cleanup) | ((T...) -> ())
 
-type BindableClass = {
-    new: (instance: Instance, context: AnyTable?) -> Destroyable,
+type BindableClass<T> = {
+    new: (instance: Instance, context: AnyTable?) -> T & Destroyable,
     [any]: any,
 }
 
 type ComponentBinderProps<T> = {
     Tag: string,
-    Class: T & BindableClass,
+    Class: T & BindableClass<T>,
     Ancestors: { Instance }?,
     Context: AnyTable?
 }
