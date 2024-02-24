@@ -1,6 +1,7 @@
 local CollectionService = game:GetService("CollectionService")
 
 local Observers = require(script.Parent.Observers)
+local Observe = require(script.Parent.Observe)
 local TableUtil = require(script.Parent.TableUtil)
 local Signal = require(script.Parent.Signal)
 local Trove = require(script.Parent.Trove)
@@ -14,23 +15,54 @@ ComponentBinder.__index = ComponentBinder
 type AnyTable = { [any]: any }
 
 type Destroyable = {
-    Destroy: () -> ()
+    Destroy: () -> (),
+    [any]: any,
 }
 
 type Cleanup = () -> ()
+type Handler<T...> = ((T...) -> Cleanup) | ((T...) -> ())
 
 type BindableClass = {
-    new: (instance: Instance, context: AnyTable?) -> Destroyable
+    new: (instance: Instance, context: AnyTable?) -> Destroyable,
+    [any]: any,
 }
 
-type ComponentBinderProps = {
+type ComponentBinderProps<T> = {
     Tag: string,
-    Class: BindableClass,
+    Class: T & BindableClass,
     Ancestors: { Instance }?,
     Context: AnyTable?
 }
 
-function ComponentBinder.new(componentBinderProps)
+type Signal<T...> = Signal.Signal<T...>
+
+-- This is the best I can do for now
+type Promise<T...> = {
+    await: (self: Promise<T...>) -> (boolean, T...),
+    expect: (self: Promise<T...>, message: string) -> T...,
+
+    andThen: (self: Promise<T...>, callback: (T...) -> any) -> any,
+    catch: (self: Promise<T...>, callback: (string) -> any) -> Promise<T...>,
+
+    finally: (self: Promise<T...>, callback: () -> any) -> Promise<T...>,
+
+    [string]: any,
+}
+
+export type ComponentBinder<T> = {
+    GetObjectAddedSignal: (self: ComponentBinder<T>) -> Signal<T>,
+    GetObjectRemovingSignal: (self: ComponentBinder<T>) -> Signal<T>,
+    Get: (self: ComponentBinder<T>, instance: Instance) -> T?,
+    WaitFor: (self: ComponentBinder<T>, instance: Instance) -> Promise<T>,
+    Bind: (self: ComponentBinder<T>, instance: Instance) -> T?,
+    BindAsync: (self: ComponentBinder<T>, instance: Instance) -> Promise<T>,
+    GetAll: (self: ComponentBinder<T>) -> { T },
+    ObserveObjects: (self: ComponentBinder<T>, handler: Handler<T>) -> Cleanup,
+    Start: (self: ComponentBinder<T>) -> (),
+    Destroy: (self: ComponentBinder<T>) -> (),
+}
+
+function ComponentBinder.new<T>(componentBinderProps: ComponentBinderProps<T>): ComponentBinder<T>
     local self = setmetatable({}, ComponentBinder)
     
     self._trove = Trove.new()
@@ -103,37 +135,8 @@ function ComponentBinder:GetAll()
     return TableUtil.Values(self._objects)
 end
 
-function ComponentBinder:ObserveObjects(callback: (object: Destroyable) -> Cleanup)
-    local cleanups = {}
-
-    for _, object in self._objects do
-        cleanups[object] = callback(object)
-    end
-
-    local addedSignal = self:GetObjectAddedSignal()
-    local removingSignal = self:GetObjectRemovingSignal()
-
-    local addedConnection = addedSignal:Connect(function(object)
-        cleanups[object] = callback(object)
-    end)
-
-    local removingConnection = removingSignal:Connect(function(object)
-        local cleanup = cleanups[object]
-
-        if cleanup then
-            cleanup()
-            cleanups[object] = nil
-        end
-    end)
-
-    return function()
-        addedConnection:Disconnect()
-        removingConnection:Disconnect()
-
-        for _, cleanup in cleanups do
-            cleanup()
-        end
-    end
+function ComponentBinder:ObserveObjects<T>(handler: Handler<T>)
+    return Observe.AddedRemovedSignal(self:GetAll(), self:GetObjectAddedSignal(), self:GetObjectRemovingSignal(), handler)
 end
 
 function ComponentBinder:_bind(instance: Instance)
